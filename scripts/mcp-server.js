@@ -1,5 +1,16 @@
-const { ethers } = require('ethers');
-const { createServer } = require('mcp');
+// scripts/mcp-server.js
+import { createServer } from 'mcp';
+import { ethers } from 'ethers';
+import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+// ES Module setup
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load environment variables
+dotenv.config();
 
 // Load contract addresses from environment
 const DOCUMENT_REGISTRY_ADDRESS = process.env.DOCUMENT_REGISTRY_ADDRESS;
