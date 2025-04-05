@@ -1,6 +1,7 @@
 {
     "name": "decentralized-ai-legal-document-generator",
     "version": "1.0.0",
+    "type": "module",
     "description": "Blockchain-based legal document generator using Claude AI",
     "main": "index.js",
     "scripts": {
