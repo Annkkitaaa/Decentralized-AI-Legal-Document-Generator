@@ -29,6 +29,6 @@
         "hardhat": "^2.22.19"
     },
     "dependencies": {
-        "mcp": "^1.4.2"
+        "@mintlify/mcp": "^1.1.45"
     }
 }

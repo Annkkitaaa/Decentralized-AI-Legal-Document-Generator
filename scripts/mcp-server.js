@@ -1,4 +1,4 @@
-import { createServer } from 'mcp';
+import { createServer } from '@mintlify/mcp';
 import { ethers } from 'ethers';
 import dotenv from 'dotenv';
 import path from 'path';
