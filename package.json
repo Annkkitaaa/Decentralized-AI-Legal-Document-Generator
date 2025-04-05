@@ -1,0 +1,30 @@
+{
+    "name": "decentralized-ai-legal-document-generator",
+    "version": "1.0.0",
+    "description": "Blockchain-based legal document generator using Claude AI",
+    "main": "index.js",
+    "scripts": {
+        "test": "hardhat test",
+        "deploy": "hardhat run scripts/deploy.js --network sepolia",
+        "register": "hardhat run scripts/register-document.js --network sepolia",
+        "verify-doc": "hardhat run scripts/verify-document.js --network sepolia",
+        "list-docs": "hardhat run scripts/get-user-documents.js --network sepolia"
+    },
+    "keywords": [
+        "ethereum",
+        "legal",
+        "documents",
+        "blockchain",
+        "claude",
+        "ai",
+        "mcp"
+    ],
+    "author": "",
+    "license": "MIT",
+    "devDependencies": {
+        "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+        "dotenv": "^16.4.7",
+        "ethers": "^5.7.2",
+        "hardhat": "^2.22.19"
+    }
+}
