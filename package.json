@@ -1,7 +1,6 @@
 {
     "name": "decentralized-ai-legal-document-generator",
     "version": "1.0.0",
-    "type": "module",
     "description": "Blockchain-based legal document generator using Claude AI",
     "main": "index.js",
     "scripts": {
@@ -23,10 +22,25 @@
     "author": "",
     "license": "MIT",
     "devDependencies": {
+        "@nomicfoundation/hardhat-chai-matchers": "^2.0.8",
+        "@nomicfoundation/hardhat-ethers": "^3.0.8",
+        "@nomicfoundation/hardhat-ignition-ethers": "^0.15.10",
+        "@nomicfoundation/hardhat-network-helpers": "^1.0.12",
         "@nomicfoundation/hardhat-toolbox": "^5.0.0",
+        "@nomicfoundation/hardhat-verify": "^2.0.13",
+        "@typechain/ethers-v6": "^0.5.1",
+        "@typechain/hardhat": "^9.1.0",
+        "@types/chai": "^5.2.1",
+        "@types/mocha": "^10.0.10",
+        "chai": "^5.2.0",
         "dotenv": "^16.4.7",
-        "ethers": "^5.7.2",
-        "hardhat": "^2.22.19"
+        "ethers": "^6.7.0",
+        "hardhat": "^2.22.19",
+        "hardhat-gas-reporter": "^2.2.2",
+        "solidity-coverage": "^0.8.14",
+        "ts-node": "^10.9.2",
+        "typechain": "^8.3.2",
+        "typescript": "^5.8.3"
     },
     "dependencies": {
         "@mintlify/mcp": "^1.1.45"

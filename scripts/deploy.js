@@ -1,38 +1,47 @@
-// scripts/deploy.js
-const hre = require("hardhat");
+﻿// scripts/deploy.js
+const hre = require('hardhat');
 
 async function main() {
-  console.log("Deploying contracts...");
+  console.log('Deploying contracts...');
 
-  // Deploy Document Registry
-  const DocumentRegistry = await hre.ethers.getContractFactory("DocumentRegistry");
+  const [deployer] = await hre.ethers.getSigners();
+  console.log('Deploying with account:', deployer.address);
+
+  const DocumentRegistry = await hre.ethers.getContractFactory('DocumentRegistry');
   const documentRegistry = await DocumentRegistry.deploy();
   await documentRegistry.waitForDeployment();
-  const documentRegistryAddress = await documentRegistry.getAddress();
-  console.log(`DocumentRegistry deployed to: ${documentRegistryAddress}`);
+  console.log('DocumentRegistry deployed to:', await documentRegistry.getAddress());
 
-  // For testing purposes, deploy a mock MCP Oracle
-  const MockMCP = await hre.ethers.getContractFactory("MockMCP");
+  const MockMCP = await hre.ethers.getContractFactory('MockMCP');
   const mockMCP = await MockMCP.deploy();
   await mockMCP.waitForDeployment();
-  const mockMCPAddress = await mockMCP.getAddress();
-  console.log(`Mock MCP Oracle deployed to: ${mockMCPAddress}`);
+  console.log('MockMCP deployed to:', await mockMCP.getAddress());
 
-  // Deploy MCP Integration with Document Registry and Mock MCP Oracle addresses
-  const MCPIntegration = await hre.ethers.getContractFactory("MCPIntegration");
+  const MCPIntegration = await hre.ethers.getContractFactory('MCPIntegration');
   const mcpIntegration = await MCPIntegration.deploy(
-    documentRegistryAddress,
-    mockMCPAddress
+    await documentRegistry.getAddress(),
+    await mockMCP.getAddress()
   );
   await mcpIntegration.waitForDeployment();
-  const mcpIntegrationAddress = await mcpIntegration.getAddress();
-  console.log(`MCPIntegration deployed to: ${mcpIntegrationAddress}`);
+  console.log('MCPIntegration deployed to:', await mcpIntegration.getAddress());
 
-  console.log("Deployment complete!");
+  console.log('Deployment complete!');
+
+  return {
+    documentRegistry: await documentRegistry.getAddress(),
+    mockMCP: await mockMCP.getAddress(),
+    mcpIntegration: await mcpIntegration.getAddress()
+  };
 }
 
 main()
-  .then(() => process.exit(0))
+  .then((addresses) => {
+    console.log('\nAdd these addresses to your .env file:');
+    console.log(`DOCUMENT_REGISTRY_ADDRESS=${addresses.documentRegistry}`);
+    console.log(`MOCK_MCP_ADDRESS=${addresses.mockMCP}`);
+    console.log(`MCP_INTEGRATION_ADDRESS=${addresses.mcpIntegration}`);
+    process.exit(0);
+  })
   .catch((error) => {
     console.error(error);
     process.exit(1);
