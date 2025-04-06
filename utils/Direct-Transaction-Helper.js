@@ -9,11 +9,13 @@ class DirectTransactionHelper {
    * Constructor
    * @param {string} contractAddress - Address of the contract
    * @param {Object} contractABI - ABI of the contract
+   * @param {number} chainId - Chain ID for the network (e.g., 11155111 for Sepolia)
    */
-  constructor(contractAddress, contractABI) {
+  constructor(contractAddress, contractABI, chainId = 11155111) {
     this.contractAddress = contractAddress;
     this.contractABI = contractABI;
     this.interface = new ethers.utils.Interface(contractABI);
+    this.chainId = chainId;
   }
   
   /**
@@ -23,25 +25,35 @@ class DirectTransactionHelper {
    * @returns {string} - Encoded function data
    */
   encodeFunctionData(functionName, params) {
-    return this.interface.encodeFunctionData(functionName, params);
+    try {
+      return this.interface.encodeFunctionData(functionName, params);
+    } catch (error) {
+      console.error(`Error encoding function ${functionName}:`, error);
+      throw new Error(`Failed to encode function call: ${error.message}`);
+    }
   }
   
   /**
    * Creates a transaction object
    * @param {string} functionName - Name of the function
    * @param {Array} params - Parameters for the function
-   * @param {string} gas - Gas limit
+   * @param {string} gas - Gas limit (as hexstring)
    * @returns {Object} - Transaction object
    */
-  createTransaction(functionName, params, gas = "100000") {
-    const data = this.encodeFunctionData(functionName, params);
-    
-    return {
-      to: this.contractAddress,
-      data: data,
-      gas: ethers.utils.hexlify(parseInt(gas)),
-      value: "0x0"
-    };
+  createTransaction(functionName, params, gas = "0x186A0") { // 0x186A0 = 100,000
+    try {
+      const data = this.encodeFunctionData(functionName, params);
+      
+      return {
+        to: this.contractAddress,
+        data: data,
+        gas: gas,
+        value: "0x0"
+      };
+    } catch (error) {
+      console.error(`Error creating transaction for ${functionName}:`, error);
+      throw new Error(`Failed to create transaction: ${error.message}`);
+    }
   }
   
   /**
@@ -50,10 +62,23 @@ class DirectTransactionHelper {
    * @returns {string} - MetaMask deep link
    */
   createMetaMaskLink(tx) {
-    const txParams = JSON.stringify(tx);
-    const encodedParams = encodeURIComponent(txParams);
-    
-    return `ethereum:${this.contractAddress}?data=${tx.data}&gas=${tx.gas}`;
+    try {
+      // Create a proper EIP-681 Ethereum URL
+      // Format: ethereum:ADDRESS@CHAINID/FUNCTION?param=value
+      const baseUrl = `ethereum:${this.contractAddress}@${this.chainId}`;
+      
+      // Create query parameters
+      const params = new URLSearchParams();
+      if (tx.data) params.append('data', tx.data);
+      if (tx.gas) params.append('gas', tx.gas);
+      if (tx.value && tx.value !== '0x0') params.append('value', tx.value);
+      
+      const queryString = params.toString();
+      return `${baseUrl}?${queryString}`;
+    } catch (error) {
+      console.error("Error creating MetaMask link:", error);
+      throw new Error(`Failed to create MetaMask link: ${error.message}`);
+    }
   }
   
   /**
@@ -64,10 +89,11 @@ class DirectTransactionHelper {
    * @returns {Object} - Transaction package with links and instructions
    */
   generateTransactionPackage(functionName, params, actionDescription) {
-    const tx = this.createTransaction(functionName, params);
-    const link = this.createMetaMaskLink(tx);
-    
-    const instructions = `
+    try {
+      const tx = this.createTransaction(functionName, params);
+      const link = this.createMetaMaskLink(tx);
+      
+      const instructions = `
 ## ${actionDescription}
 
 I've prepared the blockchain transaction for you. To proceed:
@@ -81,15 +107,20 @@ I've prepared the blockchain transaction for you. To proceed:
 Transaction details:
 - Contract: ${this.contractAddress}
 - Function: ${functionName}
+- Chain ID: ${this.chainId} (Sepolia Testnet)
 - Gas limit: ${parseInt(tx.gas, 16)}
 `;
-    
-    return {
-      transaction: tx,
-      link: link,
-      instructions: instructions,
-      rawData: tx.data
-    };
+      
+      return {
+        transaction: tx,
+        link: link,
+        instructions: instructions,
+        rawData: tx.data
+      };
+    } catch (error) {
+      console.error("Error generating transaction package:", error);
+      throw new Error(`Failed to generate transaction package: ${error.message}`);
+    }
   }
 }
 
