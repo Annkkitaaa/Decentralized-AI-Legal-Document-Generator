@@ -3,6 +3,7 @@
 pragma solidity ^0.8.17;
 
 import "./interfaces/IMCP.sol";
+import "./MCPIntegration.sol";
 
 contract MockMCP is IMCP {
     mapping(uint256 => bool) public requests;
@@ -42,6 +43,15 @@ contract MockMCP is IMCP {
             response,
             block.timestamp
         );
+        
+        // Forward response to the MCPIntegration contract if caller is an integration contract
+        if (requester.code.length > 0) {
+            try MCPIntegration(requester).receiveAIResponse(requestId, response) {
+                // Successfully forwarded
+            } catch {
+                // Ignore if the contract doesn't implement the function
+            }
+        }
     }
     
     // For testing: simulate AI response
