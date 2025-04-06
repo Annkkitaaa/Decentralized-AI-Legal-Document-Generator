@@ -1,0 +1,25 @@
+
+NON-DISCLOSURE AGREEMENT
+
+This Non-Disclosure Agreement (the "Agreement") is entered into as of the Effective Date below, by and between:
+
+ACME Corp, a corporation with its principal place of business at 123 Main Street, Anytown, USA ("Company")
+
+and
+
+John Doe, an individual residing at 456 Oak Avenue, Somewhere, USA ("Recipient")
+
+1. CONFIDENTIAL INFORMATION
+For purposes of this Agreement, "Confidential Information" shall mean any and all information related to Project X that is disclosed to Recipient by Company, either directly or indirectly, in writing, orally or by inspection of tangible objects.
+
+2. TERM
+The obligations of Recipient under this Agreement shall survive for a period of 2 years from the Effective Date.
+
+3. EFFECTIVE DATE
+This Agreement is effective as of April 6, 2025.
+
+COMPANY:                          RECIPIENT:
+ACME Corp                         John Doe
+
+___________________               ___________________
+Signature                         Signature
