@@ -120,16 +120,16 @@ async def app_lifespan(server: FastMCP) -> AsyncIterator[BlockchainContext]:
         raise
     except ValueError as e:
         logger.error(f"Value error: {str(e)}")
-        create_fallback_context_and_yield()
+        yield create_fallback_context()
     except Exception as e:
         logger.error(f"Failed to initialize: {str(e)}")
         traceback.print_exc()
-        create_fallback_context_and_yield()
+        yield create_fallback_context()
     finally:
         # Cleanup on shutdown
         logger.info("Shutting down connections...")
 
-def create_fallback_context_and_yield():
+def create_fallback_context():
     # Mock provider and contracts
     from unittest.mock import MagicMock
     mock_provider = MagicMock()
@@ -145,7 +145,7 @@ def create_fallback_context_and_yield():
         document_registry_contract=mock_contract
     )
     
-    yield context
+    return context
 
 # Create MCP server with name and dependencies
 server = FastMCP("ethereum-legal-docs", dependencies=["web3", "python-dotenv"])
@@ -206,14 +206,22 @@ async def generate_legal_document(document_type: str, requirements: str, ctx: Co
         requirements: Detailed requirements for the document
     """
     try:
+        # Debug the context object
+        logger.info(f"Context received: {ctx}")
+        logger.info(f"Has lifespan_context: {hasattr(ctx.request_context, 'lifespan_context')}")
+        
         # Access context (similar to server.context in JS)
         if not hasattr(ctx.request_context, 'lifespan_context'):
             raise ValueError("Lifespan context not initialized")
             
         blockchain_ctx = ctx.request_context.lifespan_context
+        logger.info(f"Blockchain context attributes: {dir(blockchain_ctx)}")
         
         # Check if the context has the required attributes
-        if not hasattr(blockchain_ctx, 'mcp_integration_contract'):
+        if hasattr(blockchain_ctx, 'mcp_integration_contract'):
+            logger.info("MCP integration contract found in context")
+        else:
+            logger.error("MCP integration contract missing from context")
             raise ValueError("MCP integration contract not initialized in context")
             
         logger.info(f"Generating {document_type} document")
@@ -316,6 +324,107 @@ async def generate_legal_document(document_type: str, requirements: str, ctx: Co
         }
 
 @server.tool()
+async def register_legal_document(document_id: str, document_content: str, document_type: str, ctx: Context) -> dict:
+    """Register a legal document on the Ethereum blockchain
+    
+    Args:
+        document_id: ID or reference for the document
+        document_content: The full text content of the document
+        document_type: Type of legal document (e.g., NDA, Employment Contract)
+    """
+    try:
+        # Debug the context object
+        logger.info(f"Context received for registration: {ctx}")
+        logger.info(f"Has lifespan_context: {hasattr(ctx.request_context, 'lifespan_context')}")
+        
+        # Access context safely
+        if not hasattr(ctx.request_context, 'lifespan_context'):
+            raise ValueError("Lifespan context not initialized")
+            
+        blockchain_ctx = ctx.request_context.lifespan_context
+        logger.info(f"Blockchain context attributes: {dir(blockchain_ctx)}")
+        
+        # Check if the context has the required attributes
+        if hasattr(blockchain_ctx, 'document_registry_contract'):
+            logger.info("Document registry contract found in context")
+        else:
+            logger.error("Document registry contract missing from context")
+            raise ValueError("Document registry contract not initialized in context")
+        
+        # Calculate document hash
+        document_hash = Web3.keccak(text=document_content).hex()
+        logger.info(f"Registering document with ID: {document_id}")
+        logger.debug(f"Calculated hash: {document_hash}")
+        
+        try:
+            # Try to interact with the blockchain
+            logger.info("Attempting to register document on blockchain")
+            
+            # If we have a real connection, register the document
+            if blockchain_ctx.provider.is_connected():
+                # Format parameters properly
+                document_hash_bytes = Web3.to_bytes(hexstr=document_hash)
+                
+                # Register document on the blockchain
+                register_fn = blockchain_ctx.document_registry_contract.functions.registerDocument(
+                    document_hash_bytes,
+                    document_type,
+                    "Generated via Claude MCP"
+                )
+                
+                # Sign and send the transaction
+                receipt = sign_and_send_transaction(register_fn, blockchain_ctx)
+                
+                # Extract document ID from logs
+                blockchain_document_id = None
+                for log in receipt.logs:
+                    if len(log.topics) > 1 and log.address.lower() == blockchain_ctx.document_registry_contract.address.lower():
+                        blockchain_document_id = log.topics[1].hex()
+                        break
+                
+                if blockchain_document_id:
+                    document_id = blockchain_document_id
+                
+                logger.info(f"Document registered with blockchain ID: {document_id}")
+                
+                return {
+                    "success": True,
+                    "document_id": document_id,
+                    "document_hash": document_hash,
+                    "transaction_hash": receipt.transactionHash.hex(),
+                    "message": "Document successfully registered on the blockchain"
+                }
+            else:
+                logger.warning("Using mock registration")
+                # Create a mock document ID for testing
+                mock_document_id = "0x" + uuid.uuid4().hex[:24]
+                
+                return {
+                    "success": True,
+                    "document_id": mock_document_id,
+                    "document_hash": document_hash,
+                    "transaction_hash": "0x" + uuid.uuid4().hex,
+                    "message": "Document successfully registered (simulated)"
+                }
+                
+        except Exception as blockchain_error:
+            logger.error(f"Blockchain registration failed: {str(blockchain_error)}")
+            logger.error(traceback.format_exc())
+            return {
+                "success": False,
+                "message": f"Error registering document: {str(blockchain_error)}"
+            }
+        
+    except Exception as e:
+        logger.error(f"Error registering document: {str(e)}")
+        logger.error(traceback.format_exc())
+        
+        return {
+            "success": False,
+            "message": f"Error registering document: {str(e)}"
+        }
+
+@server.tool()
 async def verify_document(document_id: str, document_content: str, ctx: Context) -> dict:
     """Verify a document's authenticity on the Ethereum blockchain
     
@@ -324,14 +433,22 @@ async def verify_document(document_id: str, document_content: str, ctx: Context)
         document_content: Content of the document to verify
     """
     try:
+        # Debug the context object
+        logger.info(f"Context received for verification: {ctx}")
+        logger.info(f"Has lifespan_context: {hasattr(ctx.request_context, 'lifespan_context')}")
+        
         # Access context safely
         if not hasattr(ctx.request_context, 'lifespan_context'):
             raise ValueError("Lifespan context not initialized")
             
         blockchain_ctx = ctx.request_context.lifespan_context
+        logger.info(f"Blockchain context attributes: {dir(blockchain_ctx)}")
         
         # Check if the context has the required attributes
-        if not hasattr(blockchain_ctx, 'document_registry_contract'):
+        if hasattr(blockchain_ctx, 'document_registry_contract'):
+            logger.info("Document registry contract found in context")
+        else:
+            logger.error("Document registry contract missing from context")
             raise ValueError("Document registry contract not initialized in context")
         
         # Calculate document hash
