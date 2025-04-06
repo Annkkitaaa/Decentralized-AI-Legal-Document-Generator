@@ -1,53 +1,65 @@
 // utils/document-verification.js
 const { ethers } = require("ethers");
+const { calculateDocumentHash } = require("./document-hash");
 
 /**
  * Utility for document verification via conversation with Claude
  */
 class DocumentVerification {
-  constructor(contractAddress) {
-    this.contractAddress = contractAddress;
-  }
-  
   /**
-   * Calculates document hash from content
-   * @param {string} documentContent - Document text
-   * @returns {string} - Document hash
+   * Constructor
+   * @param {string} contractAddress - The document registry contract address
+   * @param {number} chainId - Chain ID for the network (11155111 for Sepolia)
    */
-  calculateDocumentHash(documentContent) {
-    return ethers.utils.keccak256(
-      ethers.utils.toUtf8Bytes(documentContent)
-    );
+  constructor(contractAddress, chainId = 11155111) {
+    this.contractAddress = contractAddress;
+    this.chainId = chainId;
   }
   
   /**
    * Creates transaction data for verification
-   * @param {string} documentId - ID of the document
-   * @param {string} documentHash - Hash of the document
+   * @param {string} documentId - ID of the document (with or without 0x prefix)
+   * @param {string} documentContent - Content of the document to verify
    * @returns {object} - Transaction object for MetaMask
    */
-  createVerificationData(documentId, documentHash) {
-    // Encode function signature for 'verifyDocument'
-    const functionSignature = ethers.utils.id("verifyDocument(bytes32,bytes32)").slice(0, 10);
-    
-    // Encode parameters
-    const abiCoder = new ethers.utils.AbiCoder();
-    const encodedParams = abiCoder.encode(
-      ["bytes32", "bytes32"],
-      [documentId, documentHash]
-    ).slice(2); // Remove '0x' prefix
-    
-    // Combine function signature and encoded parameters
-    const data = functionSignature + encodedParams;
-    
-    // Return transaction object
-    return {
-      to: this.contractAddress,
-      from: "{{METAMASK_ADDRESS}}", // This will be filled by MetaMask
-      data: data,
-      gas: "50000", // Gas limit
-      value: "0" // No ETH to send
-    };
+  createVerificationData(documentId, documentContent) {
+    try {
+      // Calculate document hash
+      const documentHash = calculateDocumentHash(documentContent);
+      
+      // Format document ID if needed
+      if (!documentId.startsWith("0x")) {
+        documentId = "0x" + documentId;
+      }
+      
+      // Ensure documentId is properly padded to bytes32
+      while (documentId.length < 66) {
+        documentId = documentId.replace("0x", "0x0");
+      }
+      
+      // Encode function signature for 'verifyDocument'
+      const iface = new ethers.utils.Interface([
+        "function verifyDocument(bytes32 _documentId, bytes32 _documentHash) public returns (bool)"
+      ]);
+      
+      // Encode the function call
+      const data = iface.encodeFunctionData("verifyDocument", [
+        documentId, 
+        documentHash
+      ]);
+      
+      // Return transaction object
+      return {
+        to: this.contractAddress,
+        data: data,
+        gas: "0xC350", // 50,000 gas in hex
+        value: "0x0", // No ETH to send
+        chainId: this.chainId
+      };
+    } catch (error) {
+      console.error("Error creating verification data:", error);
+      throw new Error(`Failed to create verification data: ${error.message}`);
+    }
   }
   
   /**
@@ -56,12 +68,22 @@ class DocumentVerification {
    * @returns {string} - MetaMask deep link
    */
   generateVerificationLink(txData) {
-    // Convert txData to URL-safe format
-    const txParams = JSON.stringify(txData);
-    const encodedTxParams = encodeURIComponent(txParams);
-    
-    // Generate MetaMask deep link
-    return `https://metamask.io/deeplink.html#tx=${encodedTxParams}`;
+    try {
+      // Create a proper EIP-681 Ethereum URL
+      const baseUrl = `ethereum:${this.contractAddress}@${this.chainId}`;
+      
+      // Create query parameters
+      const params = new URLSearchParams();
+      if (txData.data) params.append('data', txData.data);
+      if (txData.gas) params.append('gas', txData.gas);
+      if (txData.value && txData.value !== '0x0') params.append('value', txData.value);
+      
+      const queryString = params.toString();
+      return `${baseUrl}?${queryString}`;
+    } catch (error) {
+      console.error("Error generating verification link:", error);
+      throw new Error(`Failed to generate verification link: ${error.message}`);
+    }
   }
   
   /**
@@ -71,17 +93,18 @@ class DocumentVerification {
    * @returns {object} - Contains verification data and instructions
    */
   generateVerificationPackage(documentId, documentContent) {
-    // Calculate document hash
-    const documentHash = this.calculateDocumentHash(documentContent);
-    
-    // Create verification transaction data
-    const txData = this.createVerificationData(documentId, documentHash);
-    
-    // Generate MetaMask link
-    const verificationLink = this.generateVerificationLink(txData);
-    
-    // Create user instructions
-    const instructions = `
+    try {
+      // Calculate document hash
+      const documentHash = calculateDocumentHash(documentContent);
+      
+      // Create verification transaction data
+      const txData = this.createVerificationData(documentId, documentContent);
+      
+      // Generate MetaMask link
+      const verificationLink = this.generateVerificationLink(txData);
+      
+      // Create user instructions
+      const instructions = `
 ## Verify Document Authenticity
 
 I'll help you verify if this document matches what was registered on the blockchain.
@@ -91,15 +114,23 @@ I'll help you verify if this document matches what was registered on the blockch
    [Verify Document Authenticity](${verificationLink})
 3. **Review & Confirm**: Check the transaction details and click "Confirm" in MetaMask.
 
-The transaction will return a result showing whether the document is authentic or has been altered.
+Document information:
+- Document ID: ${documentId}
+- Document Hash: ${documentHash}
+
+The verification process will compare this document's hash with the one stored on the blockchain. The transaction will return a result showing whether the document is authentic and unchanged.
 `;
-    
-    return {
-      documentHash,
-      txData,
-      verificationLink,
-      instructions
-    };
+      
+      return {
+        documentHash,
+        txData,
+        verificationLink,
+        instructions
+      };
+    } catch (error) {
+      console.error("Error generating verification package:", error);
+      throw new Error(`Failed to generate verification package: ${error.message}`);
+    }
   }
 }
 
