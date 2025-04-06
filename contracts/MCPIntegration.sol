@@ -20,6 +20,8 @@ contract MCPIntegration {
     }
     
     mapping(uint256 => DocumentRequest) public documentRequests;
+    // Track MCP request IDs to our internal request IDs
+    mapping(uint256 => uint256) public mcpToLocalRequestId;
     uint256 public nextRequestId = 1;
     
     event DocumentGenerationRequested(
@@ -33,6 +35,13 @@ contract MCPIntegration {
         uint256 indexed requestId,
         address indexed requester,
         bytes32 documentId
+    );
+    
+    // New event for when MCP Oracle returns a result
+    event MCPResponseReceived(
+        uint256 indexed requestId,
+        uint256 indexed mcpRequestId,
+        string response
     );
     
     constructor(address _documentRegistryAddress, address _mcpOracleAddress) {
@@ -57,6 +66,9 @@ contract MCPIntegration {
             parameters
         );
         
+        // Store mapping from MCP request ID to our internal request ID
+        mcpToLocalRequestId[mcpRequestId] = requestId;
+        
         documentRequests[requestId] = DocumentRequest({
             requester: msg.sender,
             documentType: _documentType,
@@ -72,15 +84,35 @@ contract MCPIntegration {
         return requestId;
     }
     
+    // Function to receive responses from MCP Oracle
+    function receiveAIResponse(uint256 _mcpRequestId, string memory _response) public {
+        // Only the MCP Oracle can call this
+        require(msg.sender == address(mcpOracle), "Only MCP Oracle can call this");
+        
+        // Get our internal request ID from MCP request ID
+        uint256 requestId = mcpToLocalRequestId[_mcpRequestId];
+        require(requestId > 0, "Unknown MCP request");
+        
+        DocumentRequest storage request = documentRequests[requestId];
+        require(!request.fulfilled, "Request already fulfilled");
+        
+        // Emit event with the response
+        emit MCPResponseReceived(requestId, _mcpRequestId, _response);
+    }
+    
+    // Modified to accept document content directly
     function fulfillDocumentRequest(
         uint256 _requestId,
-        bytes32 _documentHash,
+        string memory _documentContent,
         string memory _metadata
     ) public {
         DocumentRequest storage request = documentRequests[_requestId];
         
         require(!request.fulfilled, "Request already fulfilled");
         require(request.requester == msg.sender, "Not authorized");
+        
+        // Calculate document hash from content
+        bytes32 _documentHash = keccak256(abi.encodePacked(_documentContent));
         
         bytes32 documentId = documentRegistry.registerDocument(
             _documentHash,
