@@ -71,7 +71,7 @@ decentralized-ai-legal-document-generator/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/decentralized-ai-legal-document-generator.git
+   git clone https://github.com/Annkkitaaa/decentralized-ai-legal-document-generator.git
    cd decentralized-ai-legal-document-generator
    ```
 
