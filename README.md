@@ -1,6 +1,6 @@
 # Decentralized AI Legal Document Generator
 
-A blockchain-based legal document generation system that leverages Claude's AI capabilities combined with Ethereum for document verification and integrity. This project uniquely uses Claude itself as the primary interface, eliminating the need for custom frontend development while maintaining robust blockchain integration.
+A blockchain-based legal document generation system that leverages Claude's AI capabilities combined with Ethereum for document verification and integrity. This project uniquely uses Claude itself as the primary interface, eliminating the need for custom frontend development while maintaining robust blockchain integration. It incorporates Model Context Protocol (MCP) to enhance the interaction between Claude and the blockchain, ensuring secure and contextually aware document handling throughout the verification process.
 
 ## Features
 
@@ -71,7 +71,7 @@ decentralized-ai-legal-document-generator/
 
 1. **Clone the repository**
    ```bash
-   git clone https://github.com/yourusername/decentralized-ai-legal-document-generator.git
+   git clone https://github.com/Annkkitaaa/decentralized-ai-legal-document-generator.git
    cd decentralized-ai-legal-document-generator
    ```
 
