@@ -117,15 +117,21 @@ contract MCPIntegration {
     // Function to receive responses from MCP Oracle
     function receiveAIResponse(uint256 _mcpRequestId, string memory _response) public {
         // Only the MCP Oracle can call this
-        require(msg.sender == address(mcpOracle), "Only MCP Oracle can call this");
-        
+        if (msg.sender != address(mcpOracle)) {
+            revert UnauthorizedCaller();
+        }
+
         // Get our internal request ID from MCP request ID
         uint256 requestId = mcpToLocalRequestId[_mcpRequestId];
-        require(requestId > 0, "Unknown MCP request");
-        
+        if (requestId == 0) {
+            revert UnknownMCPRequest();
+        }
+
         DocumentRequest storage request = documentRequests[requestId];
-        require(!request.fulfilled, "Request already fulfilled");
-        
+        if (request.fulfilled) {
+            revert RequestAlreadyFulfilled();
+        }
+
         // Emit event with the response
         emit MCPResponseReceived(requestId, _mcpRequestId, _response);
     }
@@ -136,23 +142,41 @@ contract MCPIntegration {
         string memory _documentContent,
         string memory _metadata
     ) public {
+        // Input validation
+        if (bytes(_documentContent).length == 0) {
+            revert InvalidDocumentContent();
+        }
+        if (bytes(_documentContent).length > MAX_DOCUMENT_CONTENT_LENGTH) {
+            revert InvalidDocumentContent();
+        }
+        if (bytes(_metadata).length > MAX_METADATA_LENGTH) {
+            revert InvalidMetadata();
+        }
+
         DocumentRequest storage request = documentRequests[_requestId];
-        
-        require(!request.fulfilled, "Request already fulfilled");
-        require(request.requester == msg.sender, "Not authorized");
-        
+
+        if (request.requester == address(0)) {
+            revert RequestNotFound();
+        }
+        if (request.fulfilled) {
+            revert RequestAlreadyFulfilled();
+        }
+        if (request.requester != msg.sender) {
+            revert UnauthorizedCaller();
+        }
+
         // Calculate document hash from content
         bytes32 _documentHash = keccak256(abi.encodePacked(_documentContent));
-        
+
         bytes32 documentId = documentRegistry.registerDocument(
             _documentHash,
             request.documentType,
             _metadata
         );
-        
+
         request.documentId = documentId;
         request.fulfilled = true;
-        
+
         emit DocumentGenerationFulfilled(_requestId, msg.sender, documentId);
     }
     
