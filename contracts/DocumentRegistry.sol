@@ -3,6 +3,18 @@
 pragma solidity ^0.8.17;
 
 contract DocumentRegistry {
+    // Custom errors for gas efficiency
+    error InvalidDocumentHash();
+    error InvalidDocumentType();
+    error DocumentAlreadyExists();
+    error DocumentNotFound();
+    error MetadataTooLong();
+    error DocumentTypeTooLong();
+
+    // Constants for validation
+    uint256 private constant MAX_METADATA_LENGTH = 1000;
+    uint256 private constant MAX_DOCUMENT_TYPE_LENGTH = 100;
+
     struct Document {
         address owner;
         bytes32 documentHash;
@@ -11,17 +23,18 @@ contract DocumentRegistry {
         string metadata;
         bool exists;
     }
-    
+
     mapping(bytes32 => Document) public documents;
     mapping(address => bytes32[]) public userDocuments;
-    
+    mapping(bytes32 => bool) private documentHashExists;
+
     event DocumentRegistered(
         address indexed owner,
-        bytes32 indexed documentId, 
-        bytes32 documentHash, 
+        bytes32 indexed documentId,
+        bytes32 documentHash,
         string documentType
     );
-    
+
     event DocumentVerified(
         bytes32 indexed documentId,
         bytes32 documentHash,
