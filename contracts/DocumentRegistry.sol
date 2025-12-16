@@ -110,13 +110,25 @@ contract DocumentRegistry {
     
     function verifyDocument(bytes32 _documentId, bytes32 _documentHash) public returns (bool) {
         Document memory doc = documents[_documentId];
-        require(doc.exists, "Document does not exist");
-        
+        if (!doc.exists) {
+            revert DocumentNotFound();
+        }
+        if (_documentHash == bytes32(0)) {
+            revert InvalidDocumentHash();
+        }
+
         bool verified = doc.documentHash == _documentHash;
-        
+
         emit DocumentVerified(_documentId, _documentHash, verified);
-        
+
         return verified;
+    }
+
+    /// @notice Check if a document hash has been registered
+    /// @param _documentHash The hash to check
+    /// @return bool True if the hash exists
+    function isDocumentHashRegistered(bytes32 _documentHash) public view returns (bool) {
+        return documentHashExists[_documentHash];
     }
     
     function calculateDocumentId(bytes32 _documentHash, address _owner, uint256 _timestamp) public pure returns (bytes32) {
