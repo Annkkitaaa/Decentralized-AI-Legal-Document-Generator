@@ -96,13 +96,15 @@ contract DocumentRegistry {
         string memory metadata
     ) {
         Document memory doc = documents[_documentId];
-        require(doc.exists, "Document does not exist");
-        
+        if (!doc.exists) {
+            revert DocumentNotFound();
+        }
+
         // Anyone can view document metadata, but only owner can see full details
         if (doc.owner != msg.sender) {
             return (doc.owner, bytes32(0), doc.timestamp, doc.documentType, "");
         }
-        
+
         return (doc.owner, doc.documentHash, doc.timestamp, doc.documentType, doc.metadata);
     }
     
