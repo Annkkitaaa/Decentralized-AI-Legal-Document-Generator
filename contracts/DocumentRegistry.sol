@@ -42,12 +42,31 @@ contract DocumentRegistry {
     );
     
     function registerDocument(
-        bytes32 _documentHash, 
-        string memory _documentType, 
+        bytes32 _documentHash,
+        string memory _documentType,
         string memory _metadata
     ) public returns (bytes32) {
+        // Input validation
+        if (_documentHash == bytes32(0)) {
+            revert InvalidDocumentHash();
+        }
+        if (bytes(_documentType).length == 0) {
+            revert InvalidDocumentType();
+        }
+        if (bytes(_documentType).length > MAX_DOCUMENT_TYPE_LENGTH) {
+            revert DocumentTypeTooLong();
+        }
+        if (bytes(_metadata).length > MAX_METADATA_LENGTH) {
+            revert MetadataTooLong();
+        }
+
         bytes32 documentId = keccak256(abi.encodePacked(_documentHash, msg.sender, block.timestamp));
-        
+
+        // Check if document already exists
+        if (documents[documentId].exists) {
+            revert DocumentAlreadyExists();
+        }
+
         documents[documentId] = Document({
             owner: msg.sender,
             documentHash: _documentHash,
@@ -56,11 +75,12 @@ contract DocumentRegistry {
             metadata: _metadata,
             exists: true
         });
-        
+
+        documentHashExists[_documentHash] = true;
         userDocuments[msg.sender].push(documentId);
-        
+
         emit DocumentRegistered(msg.sender, documentId, _documentHash, _documentType);
-        
+
         return documentId;
     }
     
