@@ -6,9 +6,25 @@ import "./DocumentRegistry.sol";
 import "./interfaces/IMCP.sol";
 
 contract MCPIntegration {
+    // Custom errors for gas efficiency
+    error InvalidDocumentType();
+    error InvalidRequirements();
+    error InvalidDocumentContent();
+    error InvalidMetadata();
+    error RequestNotFound();
+    error RequestAlreadyFulfilled();
+    error UnauthorizedCaller();
+    error UnknownMCPRequest();
+
+    // Constants for validation
+    uint256 private constant MAX_DOCUMENT_TYPE_LENGTH = 100;
+    uint256 private constant MAX_REQUIREMENTS_LENGTH = 2000;
+    uint256 private constant MAX_DOCUMENT_CONTENT_LENGTH = 50000;
+    uint256 private constant MAX_METADATA_LENGTH = 1000;
+
     DocumentRegistry public documentRegistry;
     IMCP public mcpOracle;
-    
+
     struct DocumentRequest {
         address requester;
         string documentType;
@@ -18,7 +34,7 @@ contract MCPIntegration {
         bytes32 documentId;
         bool fulfilled;
     }
-    
+
     mapping(uint256 => DocumentRequest) public documentRequests;
     // Track MCP request IDs to our internal request IDs
     mapping(uint256 => uint256) public mcpToLocalRequestId;
@@ -50,25 +66,39 @@ contract MCPIntegration {
     }
     
     function requestDocumentGeneration(
-        string memory _documentType, 
+        string memory _documentType,
         string memory _requirements
     ) public returns (uint256) {
+        // Input validation
+        if (bytes(_documentType).length == 0) {
+            revert InvalidDocumentType();
+        }
+        if (bytes(_documentType).length > MAX_DOCUMENT_TYPE_LENGTH) {
+            revert InvalidDocumentType();
+        }
+        if (bytes(_requirements).length == 0) {
+            revert InvalidRequirements();
+        }
+        if (bytes(_requirements).length > MAX_REQUIREMENTS_LENGTH) {
+            revert InvalidRequirements();
+        }
+
         uint256 requestId = nextRequestId++;
-        
+
         // Create MCP request to Claude
         string memory prompt = generateClaudePrompt(_documentType, _requirements);
         string memory parameters = '{"temperature": 0.7, "max_tokens": 4000}';
-        
+
         uint256 mcpRequestId = mcpOracle.requestAIInteraction(
-            "Anthropic", 
-            "claude-3-sonnet-20240229", 
+            "Anthropic",
+            "claude-3-sonnet-20240229",
             prompt,
             parameters
         );
-        
+
         // Store mapping from MCP request ID to our internal request ID
         mcpToLocalRequestId[mcpRequestId] = requestId;
-        
+
         documentRequests[requestId] = DocumentRequest({
             requester: msg.sender,
             documentType: _documentType,
@@ -78,9 +108,9 @@ contract MCPIntegration {
             documentId: bytes32(0),
             fulfilled: false
         });
-        
+
         emit DocumentGenerationRequested(requestId, msg.sender, _documentType, mcpRequestId);
-        
+
         return requestId;
     }
     
